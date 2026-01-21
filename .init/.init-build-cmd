@@ -1,0 +1,4 @@
+{
+    "command": "npm install",
+    "working_directory": "/home/kavia/workspace/code-generation/chess-mastery-platform-309890-309901/backend_express"
+}
