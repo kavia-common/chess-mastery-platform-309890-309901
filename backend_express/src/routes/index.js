@@ -86,6 +86,29 @@ const router = express.Router();
  */
 router.get('/', healthController.check.bind(healthController));
 
+/**
+ * @swagger
+ * /health/db:
+ *   get:
+ *     summary: Database connectivity check
+ *     description: Runs a trivial `SELECT 1` query to validate POSTGRES_URL connectivity.
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Database reachable
+ *       503:
+ *         description: Database unreachable
+ */
+router.get('/health/db', async (req, res) => {
+  try {
+    const { query } = require('../db/pool');
+    const r = await query('SELECT 1 AS ok', []);
+    return res.status(200).json({ status: 'ok', db: r.rows[0] });
+  } catch (e) {
+    return res.status(503).json({ status: 'error', message: 'Database unreachable' });
+  }
+});
+
 //
 // Auth
 //

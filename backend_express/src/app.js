@@ -11,19 +11,35 @@ const { buildSessionMiddleware } = require('./middleware/session');
 const app = express();
 const cfg = getConfig();
 
-app.set('trust proxy', true);
+/**
+ * Respect proxy headers in previews / behind a load balancer.
+ * - Default: trust proxy enabled (good for most preview deployments)
+ * - Override: TRUST_PROXY=false to disable
+ */
+const trustProxyEnv = (process.env.TRUST_PROXY || 'true').toLowerCase();
+app.set('trust proxy', trustProxyEnv === '1' || trustProxyEnv === 'true' || trustProxyEnv === 'yes');
 
+// CORS: allow configured origins; return proper 403 JSON instead of generic 500 on disallowed origins.
 app.use(cors({
   origin: (origin, cb) => {
     // Allow non-browser tools (no origin) and configured origins
     if (!origin) return cb(null, true);
     if (cfg.corsOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('Not allowed by CORS'));
+    return cb(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Explicitly respond to disallowed CORS requests with a clear error (instead of falling through).
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !cfg.corsOrigins.includes(origin)) {
+    return res.status(403).json({ status: 'error', message: 'Not allowed by CORS' });
+  }
+  return next();
+});
 
 app.use(cookieParser());
 
@@ -64,8 +80,13 @@ app.use('/', routes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  // Handle disallowed CORS via explicit status
+  if (err && err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ status: 'error', message: err.message });
+  }
+
   console.error(err.stack);
-  res.status(500).json({
+  return res.status(500).json({
     status: 'error',
     message: 'Internal Server Error',
   });

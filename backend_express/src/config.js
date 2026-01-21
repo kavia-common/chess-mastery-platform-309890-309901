@@ -16,6 +16,7 @@ function getConfig() {
    * - WS_PATH (default /ws)
    * - SESSION_SECRET (default JWT_SECRET)
    * - SESSION_TTL_DAYS (default 14)
+   * - TRUST_PROXY (default true) set false to disable proxy trust
    */
   const {
     POSTGRES_URL,
